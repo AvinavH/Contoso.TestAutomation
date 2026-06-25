@@ -13,7 +13,7 @@
     <ProjectReference Include="../Contoso.Automation.D365/Contoso.Automation.D365.csproj" />
 
     <!-- Anthropic.SDK - official .NET SDK for Claude API -->
-    <PackageReference Include="Anthropic.SDK" Version="3.7.0" />
+    <PackageReference Include="Anthropic.SDK" Version="5.10.0" />
 
     <!-- JSON for parsing Claude structured responses -->
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
