@@ -1,6 +1,7 @@
 using Microsoft.Playwright;
 using Contoso.Automation.Core.Base;
 using Contoso.Automation.Core.Configuration;
+using Contoso.Automation.D365.Components;
 
 namespace Contoso.Automation.D365.Pages.Common;
 
