@@ -1,6 +1,4 @@
 using Allure.Net.Commons;
-using AventStack.ExtentReports;
-using AventStack.ExtentReports.Reporter;
 using Contoso.Automation.BDD.Support;
 using Contoso.Automation.Core.Configuration;
 using Contoso.Automation.Core.Drivers;
@@ -12,15 +10,12 @@ using Serilog;
 namespace Contoso.Automation.BDD.Hooks;
 
 /// <summary>
-/// Dual reporting stack: Allure (CI dashboard) + ExtentReports (stakeholder HTML).
+/// Reporting hooks using Allure (CI dashboard) for scenario-level reporting.
 ///
 /// Allure is largely automatic when Allure.Reqnroll is referenced — the plugin
 /// intercepts Reqnroll's step events and writes allure-results/*.json files.
 /// We supplement it here with failure screenshots attached as Allure attachments,
 /// and custom suite/story labels for better grouping in the Allure UI.
-///
-/// ExtentReports is manually driven: we create a test node per scenario,
-/// log each step's outcome, and attach failure screenshots.
 ///
 /// Reqnroll note: [BeforeTestRun], [AfterTestRun], [BeforeScenario], [AfterScenario],
 /// and [AfterStep] behave identically to SpecFlow — only the using statement changes.
@@ -28,17 +23,11 @@ namespace Contoso.Automation.BDD.Hooks;
 [Binding]
 public sealed class ReportingHooks
 {
-    private static ExtentReports? _extent;
-    private static readonly object ExtentLock = new();
-
-    [ThreadStatic]
-    private static ExtentTest? _currentTest;
-
-    private readonly ScenarioContext    _scenarioContext;
-    private readonly CrmTestContext     _ctx;
-    private readonly PlaywrightDriver   _driver;
-    private readonly ReportingSettings  _reporting;
-    private readonly ILogger            _log = Log.ForContext<ReportingHooks>();
+    private readonly ScenarioContext   _scenarioContext;
+    private readonly CrmTestContext    _ctx;
+    private readonly PlaywrightDriver  _driver;
+    private readonly ReportingSettings _reporting;
+    private readonly ILogger           _log = Log.ForContext<ReportingHooks>();
 
     public ReportingHooks(
         ScenarioContext scenarioContext,
@@ -58,36 +47,12 @@ public sealed class ReportingHooks
     public static void InitialiseReporting()
     {
         TestLogger.Configure();
-
-        lock (ExtentLock)
-        {
-            Directory.CreateDirectory("reports");
-
-            var spark = new ExtentSparkReporter(_reporting_path())
-            {
-                Config =
-                {
-                    Theme         = AventStack.ExtentReports.Reporter.Config.Theme.Dark,
-                    DocumentTitle = "D365 Automation Report",
-                    ReportName    = "D365 Test Automation Results",
-                    Encoding      = "UTF-8"
-                }
-            };
-
-            _extent = new ExtentReports();
-            _extent.AttachReporter(spark);
-            _extent.AddSystemInfo("Framework", "Playwright + Reqnroll + .NET 8");
-            _extent.AddSystemInfo("Environment",
-                Environment.GetEnvironmentVariable("TEST_ENVIRONMENT") ?? "DEV");
-        }
-
         Log.Information("Reporting initialised");
     }
 
     [AfterTestRun]
     public static void FlushReporting()
     {
-        lock (ExtentLock) { _extent?.Flush(); }
         TestLogger.CloseAndFlush();
     }
 
@@ -97,12 +62,6 @@ public sealed class ReportingHooks
     public void BeforeScenario()
     {
         var info = _scenarioContext.ScenarioInfo;
-        lock (ExtentLock)
-        {
-            _currentTest = _extent?.CreateTest(
-                info.Title,
-                $"Tags: {string.Join(", ", info.Tags)}");
-        }
 
         AllureApi.SetSuiteName(info.Title);
         AllureApi.SetStoryName(info.Title);
@@ -120,10 +79,8 @@ public sealed class ReportingHooks
         if (error is not null)
         {
             var shot = await TryScreenshotAsync();
-            _currentTest?.Fail(error.Message);
             if (shot is not null)
             {
-                _currentTest?.AddScreenCaptureFromPath(shot, "Failure Screenshot");
                 var bytes = await File.ReadAllBytesAsync(shot);
                 AllureApi.AddAttachment("Failure Screenshot", "image/png", bytes, ".png");
             }
@@ -131,21 +88,8 @@ public sealed class ReportingHooks
         }
         else
         {
-            _currentTest?.Pass("Passed");
             _log.Information("✓ PASSED: {Title}", _scenarioContext.ScenarioInfo.Title);
         }
-    }
-
-    [AfterStep]
-    public void AfterStep()
-    {
-        var step = _scenarioContext.StepContext.StepInfo;
-        var text = $"{step.StepDefinitionType} {step.Text}";
-
-        if (_scenarioContext.TestError is null)
-            _currentTest?.Log(Status.Pass, text);
-        else
-            _currentTest?.Log(Status.Fail, $"{text} | {_scenarioContext.TestError.Message}");
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -167,7 +111,4 @@ public sealed class ReportingHooks
         }
         catch { return null; }
     }
-
-    // Static helper to avoid accessing instance fields in static method
-    private static string _reporting_path() => "reports/extent-report.html";
 }
