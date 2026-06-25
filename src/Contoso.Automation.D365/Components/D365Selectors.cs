@@ -12,7 +12,7 @@ public static class D365Selectors
     // ─── Navigation ──────────────────────────────────────────────────────────
 
     /// <summary>Top navigation bar - presence confirms D365 has loaded</summary>
-    public const string TopBar = "[data-id='topbar'], .o365cs-nav-topbar-container";
+    public const string TopBar = "[id='topBar'], .o365cs-nav-topbar-container";
 
     /// <summary>Site map navigation panel</summary>
     public const string SiteMap = "[data-id='navbar-container']";

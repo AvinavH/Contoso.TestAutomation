@@ -31,7 +31,7 @@ public sealed class D365LoginPage
     private const string KmsiScreen   = "#KmsiCheckboxLabel, #kmsiTitle";
 
     // D365 UCI load indicator - appears when the shell has rendered
-    private const string D365Header   = "div[data-id='topbar'], .o365cs-nav-topbar-container, .ms-Nav-compositeLink";
+    private const string D365Header   = "div[id='topBar'], .o365cs-nav-topbar-container, .ms-Nav-compositeLink";
 
     public D365LoginPage(IPage page, D365Settings settings)
     {
