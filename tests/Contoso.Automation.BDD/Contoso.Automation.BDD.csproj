@@ -37,7 +37,7 @@
       environment info, and attachment support.
       The plugin auto-activates when referenced; no specflow.json plugin block needed.
     -->
-    <PackageReference Include="Allure.Reqnroll"                  Version="4.0.0"  />
+    <PackageReference Include="Allure.Reqnroll"                  Version="2.15.0" />
 
     <!-- Self-contained live HTML dashboard (stakeholder-friendly, no server needed) -->
     <PackageReference Include="AventStack.ExtentReports"         Version="5.0.4"  />
