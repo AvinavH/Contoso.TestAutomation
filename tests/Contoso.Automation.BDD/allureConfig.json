@@ -1,0 +1,10 @@
+{
+  "allure": {
+    "directory": "allure-results",
+    "title": "D365 Test Automation",
+    "failExceptions": [
+      "NUnit.Framework.AssertionException",
+      "FluentAssertions.Execution.AssertionFailedException"
+    ]
+  }
+}

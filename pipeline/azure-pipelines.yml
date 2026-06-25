@@ -1,0 +1,411 @@
+# D365 Automation Test Automation - Azure DevOps CI/CD Pipeline
+# Full pipeline: Build → Parallel Tests → Quality Gate → Publish Reports
+#
+# Secrets required in variable groups or pipeline variables (mark as secret):
+#   D365_USERNAME        - automation service account UPN
+#   D365_PASSWORD        - service account password
+#   D365_BASE_URL        - https://nwforg.crm4.dynamics.com
+#   D365_API_URL         - https://nwforg.api.crm4.dynamics.com/api/data/v9.2
+#   DATAVERSE_TENANT_ID  - Azure AD tenant GUID
+#   DATAVERSE_CLIENT_ID  - App registration client ID
+#   ANTHROPIC_API_KEY    - Claude API key (optional - tests degrade gracefully)
+
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+      - release/*
+  paths:
+    exclude:
+      - docs/**
+      - "*.md"
+      - .gitignore
+
+pr:
+  branches:
+    include:
+      - main
+      - develop
+
+variables:
+  buildConfiguration: 'Release'
+  dotnetVersion: '8.x'
+  # Artifact directories (relative to agent working dir)
+  testResultsDir: '$(Build.ArtifactStagingDirectory)/test-results'
+  allureResultsDir: '$(Build.ArtifactStagingDirectory)/allure-results'
+  screenshotsDir: '$(Build.ArtifactStagingDirectory)/screenshots'
+  tracesDir: '$(Build.ArtifactStagingDirectory)/traces'
+  reportsDir: '$(Build.ArtifactStagingDirectory)/reports'
+  # Quality gate thresholds
+  minPassRatePercent: 80
+  # NUnit parallel execution
+  nunitWorkers: 4
+
+stages:
+
+# ══════════════════════════════════════════════════════════════════════════════
+# STAGE 1 — BUILD & VALIDATE
+# Restores, compiles, and installs Playwright browsers.
+# Fails fast if the code doesn't compile before wasting compute on test agents.
+# ══════════════════════════════════════════════════════════════════════════════
+- stage: Build
+  displayName: '1 · Build & Validate'
+  jobs:
+
+  - job: BuildAndValidate
+    displayName: 'Build solution'
+    pool:
+      vmImage: 'ubuntu-latest'
+
+    steps:
+
+    - task: UseDotNet@2
+      displayName: 'Install .NET SDK $(dotnetVersion)'
+      inputs:
+        packageType: 'sdk'
+        version: '$(dotnetVersion)'
+
+    - task: DotNetCoreCLI@2
+      displayName: 'Restore NuGet packages'
+      inputs:
+        command: 'restore'
+        projects: '**/*.csproj'
+        feedsToUse: 'select'
+
+    - task: DotNetCoreCLI@2
+      displayName: 'Build (Release)'
+      inputs:
+        command: 'build'
+        projects: '**/*.csproj'
+        arguments: '--configuration $(buildConfiguration) --no-restore'
+
+    - task: DotNetCoreCLI@2
+      displayName: 'Install Playwright browsers'
+      inputs:
+        command: 'custom'
+        custom: 'run'
+        arguments: 'playwright install --with-deps chromium'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/tests/Contoso.Automation.BDD'
+
+    # Publish build output so test stages can download without recompiling
+    - task: PublishPipelineArtifact@1
+      displayName: 'Publish build artifact'
+      inputs:
+        targetPath: '$(System.DefaultWorkingDirectory)'
+        artifact: 'BuildOutput'
+        publishLocation: 'pipeline'
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# STAGE 2 — RUN TESTS (parallel jobs)
+# BDD UI tests and API tests run in parallel to minimise total run time.
+# Both jobs use continueOnError:true so test results are always published
+# even when tests fail (results are needed for the quality gate stage).
+# ══════════════════════════════════════════════════════════════════════════════
+- stage: RunTests
+  displayName: '2 · Run Tests'
+  dependsOn: Build
+  jobs:
+
+  # ─── Job A: BDD UI Tests ───────────────────────────────────────────────────
+  - job: BDDTests
+    displayName: 'BDD UI Tests (Playwright + Reqnroll)'
+    pool:
+      vmImage: 'ubuntu-latest'
+    continueOnError: true
+
+    steps:
+
+    - task: UseDotNet@2
+      inputs:
+        packageType: 'sdk'
+        version: '$(dotnetVersion)'
+
+    - task: DownloadPipelineArtifact@2
+      displayName: 'Download build output'
+      inputs:
+        artifact: 'BuildOutput'
+        path: '$(System.DefaultWorkingDirectory)'
+
+    - task: DotNetCoreCLI@2
+      displayName: 'Reinstall Playwright browsers on test agent'
+      inputs:
+        command: 'custom'
+        custom: 'run'
+        arguments: 'playwright install --with-deps chromium'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/tests/Contoso.Automation.BDD'
+
+    - task: DotNetCoreCLI@2
+      displayName: 'Run BDD test suite'
+      inputs:
+        command: 'test'
+        projects: 'tests/Contoso.Automation.BDD/Contoso.Automation.BDD.csproj'
+        arguments: >
+          --configuration $(buildConfiguration)
+          --no-build
+          --logger "trx;LogFileName=bdd-results.trx"
+          --logger "console;verbosity=normal"
+          --results-directory $(testResultsDir)
+          --
+          NUnit.NumberOfTestWorkers=$(nunitWorkers)
+      env:
+        # D365 credentials injected from pipeline secrets
+        D365__BaseUrl:           $(D365_BASE_URL)
+        D365__Username:          $(D365_USERNAME)
+        D365__Password:          $(D365_PASSWORD)
+        # Dataverse API settings
+        Dataverse__ApiBaseUrl:   $(D365_API_URL)
+        Dataverse__TenantId:     $(DATAVERSE_TENANT_ID)
+        Dataverse__ClientId:     $(DATAVERSE_CLIENT_ID)
+        Dataverse__Resource:     $(D365_BASE_URL)/
+        # AI - optional; framework degrades gracefully if not set
+        AI__AnthropicApiKey:     $(ANTHROPIC_API_KEY)
+        # Force headless for CI
+        Browser__Headless:       'true'
+        Browser__RecordTrace:    'true'
+        # Allure output directory
+        ALLURE_RESULTS_DIRECTORY: '$(allureResultsDir)/bdd'
+        # Reporting directories
+        Reporting__ScreenshotDirectory: '$(screenshotsDir)'
+        Reporting__TraceDirectory:      '$(tracesDir)'
+        TEST_ENVIRONMENT: 'CI'
+      continueOnError: true
+
+    - task: PublishTestResults@2
+      displayName: 'Publish BDD test results (TRX)'
+      condition: always()
+      inputs:
+        testResultsFormat: 'VSTest'
+        testResultsFiles: '$(testResultsDir)/bdd-results.trx'
+        testRunTitle: 'BDD UI Tests'
+        failTaskOnFailedTests: false
+
+    - task: PublishPipelineArtifact@1
+      displayName: 'Publish Allure results'
+      condition: always()
+      inputs:
+        targetPath: '$(allureResultsDir)'
+        artifact: 'AllureResultsBDD'
+
+    - task: PublishPipelineArtifact@1
+      displayName: 'Publish screenshots on failure'
+      condition: always()
+      inputs:
+        targetPath: '$(screenshotsDir)'
+        artifact: 'Screenshots'
+
+    - task: PublishPipelineArtifact@1
+      displayName: 'Publish Playwright traces on failure'
+      condition: always()
+      inputs:
+        targetPath: '$(tracesDir)'
+        artifact: 'PlaywrightTraces'
+
+  # ─── Job B: Standalone API Tests ──────────────────────────────────────────
+  - job: APITests
+    displayName: 'Dataverse API Tests'
+    pool:
+      vmImage: 'ubuntu-latest'
+    continueOnError: true
+
+    steps:
+
+    - task: UseDotNet@2
+      inputs:
+        packageType: 'sdk'
+        version: '$(dotnetVersion)'
+
+    - task: DownloadPipelineArtifact@2
+      displayName: 'Download build output'
+      inputs:
+        artifact: 'BuildOutput'
+        path: '$(System.DefaultWorkingDirectory)'
+
+    - task: DotNetCoreCLI@2
+      displayName: 'Run API test suite'
+      inputs:
+        command: 'test'
+        projects: 'tests/Contoso.Automation.API.Tests/Contoso.Automation.API.Tests.csproj'
+        arguments: >
+          --configuration $(buildConfiguration)
+          --no-build
+          --logger "trx;LogFileName=api-results.trx"
+          --results-directory $(testResultsDir)
+      env:
+        D365__BaseUrl:           $(D365_BASE_URL)
+        D365__Username:          $(D365_USERNAME)
+        D365__Password:          $(D365_PASSWORD)
+        Dataverse__ApiBaseUrl:   $(D365_API_URL)
+        Dataverse__TenantId:     $(DATAVERSE_TENANT_ID)
+        Dataverse__ClientId:     $(DATAVERSE_CLIENT_ID)
+        Dataverse__Resource:     $(D365_BASE_URL)/
+        TEST_ENVIRONMENT: 'CI'
+      continueOnError: true
+
+    - task: PublishTestResults@2
+      displayName: 'Publish API test results (TRX)'
+      condition: always()
+      inputs:
+        testResultsFormat: 'VSTest'
+        testResultsFiles: '$(testResultsDir)/api-results.trx'
+        testRunTitle: 'Dataverse API Tests'
+        failTaskOnFailedTests: false
+
+    - task: PublishPipelineArtifact@1
+      displayName: 'Publish API test results artifact'
+      condition: always()
+      inputs:
+        targetPath: '$(testResultsDir)'
+        artifact: 'APITestResults'
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# STAGE 3 — QUALITY GATE
+# Parses TRX results and enforces minimum pass rate threshold.
+# Fails the pipeline if pass rate drops below $(minPassRatePercent)%.
+# This is the gate that blocks broken code from reaching production.
+# ══════════════════════════════════════════════════════════════════════════════
+- stage: QualityGate
+  displayName: '3 · Quality Gate'
+  dependsOn: RunTests
+  condition: always()
+
+  jobs:
+  - job: EvaluateQuality
+    displayName: 'Evaluate pass rate (min $(minPassRatePercent)%)'
+    pool:
+      vmImage: 'ubuntu-latest'
+
+    steps:
+
+    - task: DownloadPipelineArtifact@2
+      displayName: 'Download BDD test results'
+      inputs:
+        artifact: 'AllureResultsBDD'
+        path: '$(Pipeline.Workspace)/AllureResultsBDD'
+      continueOnError: true
+
+    - task: DownloadPipelineArtifact@2
+      displayName: 'Download API test results'
+      inputs:
+        artifact: 'APITestResults'
+        path: '$(Pipeline.Workspace)/APITestResults'
+      continueOnError: true
+
+    - task: PowerShell@2
+      displayName: 'Evaluate quality gate'
+      inputs:
+        targetType: 'inline'
+        script: |
+          Write-Host "══════════════════════════════════════════"
+          Write-Host " Quality Gate Evaluation"
+          Write-Host "══════════════════════════════════════════"
+
+          $minPassRate = [int]$env:MIN_PASS_RATE
+          $trxFiles    = Get-ChildItem -Path "$(Pipeline.Workspace)" -Recurse -Filter "*.trx"
+
+          if ($trxFiles.Count -eq 0) {
+            Write-Warning "No TRX result files found - quality gate cannot evaluate"
+            exit 0
+          }
+
+          $totalPassed = 0
+          $totalFailed = 0
+          $totalTests  = 0
+
+          foreach ($trx in $trxFiles) {
+            [xml]$content = Get-Content $trx.FullName
+            $counters = $content.TestRun.ResultSummary.Counters
+
+            $passed = [int]$counters.passed
+            $failed = [int]$counters.failed
+            $total  = [int]$counters.total
+
+            Write-Host "  $($trx.Name): $passed passed / $total total"
+            $totalPassed += $passed
+            $totalFailed += $failed
+            $totalTests  += $total
+          }
+
+          $passRate = if ($totalTests -gt 0) { [Math]::Round(($totalPassed / $totalTests) * 100, 1) } else { 0 }
+
+          Write-Host ""
+          Write-Host "══════════════════════════════════════════"
+          Write-Host "  Total Tests : $totalTests"
+          Write-Host "  Passed      : $totalPassed"
+          Write-Host "  Failed      : $totalFailed"
+          Write-Host "  Pass Rate   : $passRate% (min: $minPassRate%)"
+          Write-Host "══════════════════════════════════════════"
+
+          # Write summary to pipeline
+          Write-Host "##vso[task.setprogress value=$passRate;]Test Pass Rate: $passRate%"
+
+          if ($passRate -lt $minPassRate) {
+            Write-Host "##vso[task.logissue type=error]QUALITY GATE FAILED: Pass rate $passRate% is below minimum $minPassRate%"
+            Write-Host "##vso[task.complete result=Failed;]Quality gate failed"
+            exit 1
+          }
+
+          Write-Host "✅ Quality gate PASSED: $passRate% >= $minPassRate%"
+      env:
+        MIN_PASS_RATE: '$(minPassRatePercent)'
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# STAGE 4 — PUBLISH REPORTS
+# Generates the Allure HTML report and publishes all artifacts.
+# Runs regardless of gate outcome so evidence is always available for debugging.
+# ══════════════════════════════════════════════════════════════════════════════
+- stage: PublishReports
+  displayName: '4 · Publish Reports'
+  dependsOn:
+    - RunTests
+    - QualityGate
+  condition: always()
+
+  jobs:
+  - job: GenerateAllureReport
+    displayName: 'Generate Allure HTML report'
+    pool:
+      vmImage: 'ubuntu-latest'
+
+    steps:
+
+    - task: DownloadPipelineArtifact@2
+      inputs:
+        artifact: 'AllureResultsBDD'
+        path: '$(Pipeline.Workspace)/allure-results'
+      continueOnError: true
+
+    - script: |
+        sudo apt-get install -y default-jre
+        wget -q https://github.com/allure-framework/allure2/releases/download/2.27.0/allure-2.27.0.tgz
+        tar -xzf allure-2.27.0.tgz
+        ./allure-2.27.0/bin/allure generate $(Pipeline.Workspace)/allure-results \
+          --output $(Build.ArtifactStagingDirectory)/allure-report \
+          --clean
+      displayName: 'Generate Allure HTML report'
+      continueOnError: true
+
+    - task: PublishPipelineArtifact@1
+      displayName: 'Publish Allure HTML report'
+      condition: always()
+      inputs:
+        targetPath: '$(Build.ArtifactStagingDirectory)/allure-report'
+        artifact: 'AllureReport'
+
+    - task: DownloadPipelineArtifact@2
+      displayName: 'Download screenshots for report archive'
+      inputs:
+        artifact: 'Screenshots'
+        path: '$(Build.ArtifactStagingDirectory)/screenshots'
+      continueOnError: true
+
+    - task: PublishPipelineArtifact@1
+      displayName: 'Publish ExtentReports HTML'
+      condition: always()
+      inputs:
+        targetPath: '$(reportsDir)'
+        artifact: 'ExtentReport'
+      continueOnError: true

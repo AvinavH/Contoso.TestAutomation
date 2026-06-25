@@ -1,0 +1,332 @@
+// D365 Automation Test Automation — Jenkins Declarative Pipeline
+// Mirrors the Azure DevOps pipeline structure: Build → Test → Quality Gate → Reports
+//
+// Prerequisites on the Jenkins agent:
+//   - .NET SDK 8.x installed
+//   - Playwright system dependencies (apt-get install -y libglib2.0-0 libnss3 libnspr4 ...)
+//   - Credentials configured in Jenkins Credential Store (see CREDENTIALS section below)
+//
+// Jenkins credentials to configure (Credential ID → Type):
+//   crm-d365-username    → Secret Text
+//   crm-d365-password    → Secret Text
+//   crm-d365-base-url    → Secret Text
+//   crm-d365-api-url     → Secret Text
+//   crm-tenant-id        → Secret Text
+//   crm-client-id        → Secret Text
+//   crm-anthropic-key    → Secret Text (optional)
+
+pipeline {
+    agent {
+        label 'dotnet-agent'   // Target agents with .NET 8 + Playwright deps installed
+    }
+
+    options {
+        timeout(time: 60, unit: 'MINUTES')
+        buildDiscarder(logRotator(numToKeepStr: '30', artifactNumToKeepStr: '10'))
+        timestamps()
+        ansiColor('xterm')
+    }
+
+    parameters {
+        choice(
+            name: 'TEST_SCOPE',
+            choices: ['Smoke', 'Regression', 'All'],
+            description: 'Which test tags to run. Smoke = ~5min, All = ~20min'
+        )
+        booleanParam(
+            name: 'RUN_API_TESTS',
+            defaultValue: true,
+            description: 'Include standalone Dataverse API tests'
+        )
+        string(
+            name: 'MIN_PASS_RATE',
+            defaultValue: '80',
+            description: 'Minimum test pass rate % to pass the quality gate'
+        )
+    }
+
+    environment {
+        BUILD_CONFIG       = 'Release'
+        TEST_RESULTS_DIR   = "${WORKSPACE}/reports/test-results"
+        ALLURE_RESULTS_DIR = "${WORKSPACE}/allure-results"
+        SCREENSHOTS_DIR    = "${WORKSPACE}/reports/screenshots"
+        TRACES_DIR         = "${WORKSPACE}/reports/traces"
+        EXTENT_REPORT      = "${WORKSPACE}/reports/extent-report.html"
+        TEST_ENVIRONMENT   = 'CI'
+        Browser__Headless  = 'true'
+        Browser__RecordTrace = 'true'
+    }
+
+    stages {
+
+        // ══════════════════════════════════════════════════════════════════════
+        // STAGE 1: BUILD & VALIDATE
+        // ══════════════════════════════════════════════════════════════════════
+        stage('Build & Validate') {
+            steps {
+                echo "🔨 Building Demo Test Automation Framework (${BUILD_CONFIG})"
+
+                sh 'dotnet restore Contoso.TestAutomation.sln --verbosity minimal'
+
+                sh """
+                    dotnet build Contoso.TestAutomation.sln \
+                        --configuration ${BUILD_CONFIG} \
+                        --no-restore \
+                        --verbosity minimal
+                """
+
+                // Install Playwright browser once during build stage
+                dir('tests/Contoso.Automation.BDD') {
+                    sh 'dotnet run --project . -- playwright install --with-deps chromium 2>&1 || \
+                        dotnet tool run playwright install --with-deps chromium 2>&1 || \
+                        ~/.dotnet/tools/playwright install --with-deps chromium'
+                }
+
+                echo "✅ Build stage complete"
+            }
+            post {
+                failure {
+                    error("Build failed — aborting pipeline. Fix compilation errors before running tests.")
+                }
+            }
+        }
+
+        // ══════════════════════════════════════════════════════════════════════
+        // STAGE 2: RUN TESTS (parallel BDD UI + API)
+        // ══════════════════════════════════════════════════════════════════════
+        stage('Run Tests') {
+            parallel {
+
+                // ── BDD UI Tests ──────────────────────────────────────────────
+                stage('BDD UI Tests') {
+                    steps {
+                        withCredentials([
+                            string(credentialsId: 'crm-d365-base-url',  variable: 'D365_BASE_URL'),
+                            string(credentialsId: 'crm-d365-username',   variable: 'D365_USERNAME'),
+                            string(credentialsId: 'crm-d365-password',   variable: 'D365_PASSWORD'),
+                            string(credentialsId: 'crm-d365-api-url',    variable: 'D365_API_URL'),
+                            string(credentialsId: 'crm-tenant-id',        variable: 'DATAVERSE_TENANT_ID'),
+                            string(credentialsId: 'crm-client-id',        variable: 'DATAVERSE_CLIENT_ID'),
+                            string(credentialsId: 'crm-anthropic-key',    variable: 'ANTHROPIC_API_KEY')
+                        ]) {
+                            script {
+                                def filter = params.TEST_SCOPE == 'All' ? '' : "--filter TestCategory=${params.TEST_SCOPE}"
+
+                                sh """
+                                    mkdir -p ${TEST_RESULTS_DIR} ${ALLURE_RESULTS_DIR} ${SCREENSHOTS_DIR} ${TRACES_DIR}
+
+                                    D365__BaseUrl="${D365_BASE_URL}" \\
+                                    D365__Username="${D365_USERNAME}" \\
+                                    D365__Password="${D365_PASSWORD}" \\
+                                    Dataverse__ApiBaseUrl="${D365_API_URL}" \\
+                                    Dataverse__TenantId="${DATAVERSE_TENANT_ID}" \\
+                                    Dataverse__ClientId="${DATAVERSE_CLIENT_ID}" \\
+                                    Dataverse__Resource="${D365_BASE_URL}/" \\
+                                    AI__AnthropicApiKey="${ANTHROPIC_API_KEY}" \\
+                                    Reporting__ScreenshotDirectory="${SCREENSHOTS_DIR}" \\
+                                    Reporting__TraceDirectory="${TRACES_DIR}" \\
+                                    ALLURE_RESULTS_DIRECTORY="${ALLURE_RESULTS_DIR}/bdd" \\
+                                    dotnet test tests/Contoso.Automation.BDD/Contoso.Automation.BDD.csproj \\
+                                        --configuration ${BUILD_CONFIG} \\
+                                        --no-build \\
+                                        ${filter} \\
+                                        --logger "trx;LogFileName=${TEST_RESULTS_DIR}/bdd-results.trx" \\
+                                        --logger "console;verbosity=normal" \\
+                                        -- NUnit.NumberOfTestWorkers=4 \\
+                                        || true   # continue even if tests fail; gate handles quality
+                                """
+                            }
+                        }
+                    }
+                    post {
+                        always {
+                            // Archive screenshots and traces for failure investigation
+                            archiveArtifacts(
+                                artifacts: "reports/screenshots/**,reports/traces/**",
+                                allowEmptyArchive: true
+                            )
+                        }
+                    }
+                }
+
+                // ── Dataverse API Tests ───────────────────────────────────────
+                stage('API Tests') {
+                    when {
+                        expression { params.RUN_API_TESTS == true }
+                    }
+                    steps {
+                        withCredentials([
+                            string(credentialsId: 'crm-d365-base-url', variable: 'D365_BASE_URL'),
+                            string(credentialsId: 'crm-d365-username',  variable: 'D365_USERNAME'),
+                            string(credentialsId: 'crm-d365-password',  variable: 'D365_PASSWORD'),
+                            string(credentialsId: 'crm-d365-api-url',   variable: 'D365_API_URL'),
+                            string(credentialsId: 'crm-tenant-id',       variable: 'DATAVERSE_TENANT_ID'),
+                            string(credentialsId: 'crm-client-id',       variable: 'DATAVERSE_CLIENT_ID')
+                        ]) {
+                            sh """
+                                D365__BaseUrl="${D365_BASE_URL}" \\
+                                D365__Username="${D365_USERNAME}" \\
+                                D365__Password="${D365_PASSWORD}" \\
+                                Dataverse__ApiBaseUrl="${D365_API_URL}" \\
+                                Dataverse__TenantId="${DATAVERSE_TENANT_ID}" \\
+                                Dataverse__ClientId="${DATAVERSE_CLIENT_ID}" \\
+                                Dataverse__Resource="${D365_BASE_URL}/" \\
+                                dotnet test tests/Contoso.Automation.API.Tests/Contoso.Automation.API.Tests.csproj \\
+                                    --configuration ${BUILD_CONFIG} \\
+                                    --no-build \\
+                                    --logger "trx;LogFileName=${TEST_RESULTS_DIR}/api-results.trx" \\
+                                    || true
+                            """
+                        }
+                    }
+                }
+            }
+
+            post {
+                always {
+                    // Publish TRX results regardless of test outcome
+                    script {
+                        if (fileExists("${TEST_RESULTS_DIR}/bdd-results.trx") ||
+                            fileExists("${TEST_RESULTS_DIR}/api-results.trx")) {
+                            junit(
+                                testResults: "${TEST_RESULTS_DIR}/**/*.trx",
+                                allowEmptyResults: true,
+                                keepLongStdio: true
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // ══════════════════════════════════════════════════════════════════════
+        // STAGE 3: QUALITY GATE
+        // ══════════════════════════════════════════════════════════════════════
+        stage('Quality Gate') {
+            steps {
+                script {
+                    echo "⚖️  Evaluating quality gate (min pass rate: ${params.MIN_PASS_RATE}%)"
+
+                    def trxFiles = findFiles(glob: "${TEST_RESULTS_DIR}/**/*.trx")
+
+                    if (trxFiles.length == 0) {
+                        echo "⚠️  No TRX result files found - skipping quality gate"
+                        return
+                    }
+
+                    def totalPassed = 0
+                    def totalFailed = 0
+                    def totalTests  = 0
+
+                    trxFiles.each { trx ->
+                        def xml     = readFile(trx.path)
+                        def matcher = xml =~ /passed="(\d+)"/
+                        if (matcher) totalPassed += matcher[0][1].toInteger()
+                        matcher     = xml =~ /failed="(\d+)"/
+                        if (matcher) totalFailed += matcher[0][1].toInteger()
+                        matcher     = xml =~ /total="(\d+)"/
+                        if (matcher) totalTests  += matcher[0][1].toInteger()
+                    }
+
+                    def passRate = totalTests > 0
+                        ? ((totalPassed / totalTests) * 100).round(1)
+                        : 0
+
+                    echo """
+══════════════════════════════════════════
+ NWF Quality Gate Results
+══════════════════════════════════════════
+ Total Tests : ${totalTests}
+ Passed      : ${totalPassed}
+ Failed      : ${totalFailed}
+ Pass Rate   : ${passRate}% (min: ${params.MIN_PASS_RATE}%)
+══════════════════════════════════════════"""
+
+                    if (passRate < params.MIN_PASS_RATE.toInteger()) {
+                        currentBuild.result = 'FAILURE'
+                        error("❌ QUALITY GATE FAILED: Pass rate ${passRate}% is below minimum ${params.MIN_PASS_RATE}%")
+                    }
+
+                    echo "✅ Quality gate PASSED: ${passRate}% >= ${params.MIN_PASS_RATE}%"
+                }
+            }
+        }
+
+        // ══════════════════════════════════════════════════════════════════════
+        // STAGE 4: PUBLISH REPORTS
+        // ══════════════════════════════════════════════════════════════════════
+        stage('Publish Reports') {
+            steps {
+                script {
+                    // Generate Allure HTML report if results exist
+                    if (fileExists("${ALLURE_RESULTS_DIR}")) {
+                        sh """
+                            if command -v allure &> /dev/null; then
+                                allure generate ${ALLURE_RESULTS_DIR} \
+                                    --output reports/allure-report \
+                                    --clean
+                                echo "Allure report generated"
+                            else
+                                echo "Allure CLI not on PATH - publishing raw results only"
+                            fi
+                        """
+                    }
+                }
+            }
+            post {
+                always {
+                    // Archive all report artifacts
+                    archiveArtifacts(
+                        artifacts: [
+                            "reports/extent-report.html",
+                            "reports/allure-report/**",
+                            "${TEST_RESULTS_DIR}/**/*.trx",
+                            "reports/logs/**"
+                        ].join(','),
+                        allowEmptyArchive: true
+                    )
+
+                    // Allure Jenkins Plugin integration (if plugin installed)
+                    script {
+                        try {
+                            allure([
+                                includeProperties: false,
+                                jdk: '',
+                                properties: [],
+                                reportBuildPolicy: 'ALWAYS',
+                                results: [[path: 'allure-results']]
+                            ])
+                        } catch (Exception e) {
+                            echo "Allure plugin not available: ${e.message}"
+                        }
+                    }
+
+                    // Send pipeline notification
+                    script {
+                        def status = currentBuild.result ?: 'SUCCESS'
+                        def color  = status == 'SUCCESS' ? '#36a64f' : '#ff0000'
+                        def icon   = status == 'SUCCESS' ? '✅' : '❌'
+
+                        echo "${icon} Pipeline ${status}: ${env.JOB_NAME} #${env.BUILD_NUMBER}"
+                        echo "Results: ${env.BUILD_URL}testReport"
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs(patterns: [
+                [pattern: '.auth/**', type: 'EXCLUDE'],  // Keep auth state across runs if desired
+                [pattern: 'reports/**', type: 'EXCLUDE'] // Keep reports for debugging
+            ])
+        }
+        failure {
+            echo "Pipeline failed. See test report: ${env.BUILD_URL}testReport"
+        }
+        success {
+            echo "Pipeline passed. Allure report: ${env.BUILD_URL}allure/"
+        }
+    }
+}

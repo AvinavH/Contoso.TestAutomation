@@ -1,0 +1,105 @@
+# D365 Automation Automation — Pull Request Validation Pipeline
+# Runs on every PR against main/develop.
+# Only executes @Smoke tagged tests to give fast feedback (~5min vs ~20min for full suite).
+# Full suite runs only on merge to main.
+
+trigger: none
+
+pr:
+  branches:
+    include:
+      - main
+      - develop
+  paths:
+    exclude:
+      - docs/**
+      - "*.md"
+
+variables:
+  buildConfiguration: 'Release'
+  dotnetVersion: '8.x'
+  testResultsDir: '$(Build.ArtifactStagingDirectory)/test-results'
+  # PR runs only smoke tests to keep feedback under 5 minutes
+  smokeFilter: 'TestCategory=Smoke'
+
+stages:
+
+- stage: PRValidation
+  displayName: 'PR Validation'
+  jobs:
+
+  - job: BuildAndSmokeTest
+    displayName: 'Build + Smoke Tests'
+    pool:
+      vmImage: 'ubuntu-latest'
+    timeoutInMinutes: 20
+
+    steps:
+
+    - task: UseDotNet@2
+      inputs:
+        packageType: 'sdk'
+        version: '$(dotnetVersion)'
+
+    - task: DotNetCoreCLI@2
+      displayName: 'Restore'
+      inputs:
+        command: 'restore'
+        projects: '**/*.csproj'
+
+    - task: DotNetCoreCLI@2
+      displayName: 'Build'
+      inputs:
+        command: 'build'
+        projects: '**/*.csproj'
+        arguments: '--configuration $(buildConfiguration) --no-restore'
+
+    - task: DotNetCoreCLI@2
+      displayName: 'Install Playwright'
+      inputs:
+        command: 'custom'
+        custom: 'run'
+        arguments: 'playwright install --with-deps chromium'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/tests/Contoso.Automation.BDD'
+
+    # Run only @Smoke tests for fast PR feedback
+    - task: DotNetCoreCLI@2
+      displayName: 'Run Smoke tests'
+      inputs:
+        command: 'test'
+        projects: |
+          tests/Contoso.Automation.BDD/Contoso.Automation.BDD.csproj
+          tests/Contoso.Automation.API.Tests/Contoso.Automation.API.Tests.csproj
+        arguments: >
+          --configuration $(buildConfiguration)
+          --no-build
+          --filter $(smokeFilter)
+          --logger "trx;LogFileName=pr-smoke-results.trx"
+          --results-directory $(testResultsDir)
+      env:
+        D365__BaseUrl:         $(D365_BASE_URL)
+        D365__Username:        $(D365_USERNAME)
+        D365__Password:        $(D365_PASSWORD)
+        Dataverse__ApiBaseUrl: $(D365_API_URL)
+        Dataverse__TenantId:   $(DATAVERSE_TENANT_ID)
+        Dataverse__ClientId:   $(DATAVERSE_CLIENT_ID)
+        Dataverse__Resource:   $(D365_BASE_URL)/
+        AI__AnthropicApiKey:   $(ANTHROPIC_API_KEY)
+        Browser__Headless:     'true'
+        TEST_ENVIRONMENT:      'CI'
+
+    - task: PublishTestResults@2
+      displayName: 'Publish PR smoke results'
+      condition: always()
+      inputs:
+        testResultsFormat: 'VSTest'
+        testResultsFiles: '$(testResultsDir)/pr-smoke-results.trx'
+        testRunTitle: 'PR Smoke Tests — $(Build.SourceBranchName)'
+        failTaskOnFailedTests: true  # PRs must have all smoke tests green
+
+    - task: PublishPipelineArtifact@1
+      displayName: 'Publish screenshots (failures only)'
+      condition: failed()
+      inputs:
+        targetPath: 'reports/screenshots'
+        artifact: 'PR-FailureScreenshots'

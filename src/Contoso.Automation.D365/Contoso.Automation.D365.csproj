@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Contoso.Automation.D365</RootNamespace>
+    <AssemblyName>Contoso.Automation.D365</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Contoso.Automation.Core/Contoso.Automation.Core.csproj" />
+  </ItemGroup>
+
+</Project>

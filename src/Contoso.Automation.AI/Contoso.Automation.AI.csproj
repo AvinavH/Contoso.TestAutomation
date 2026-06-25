@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Contoso.Automation.AI</RootNamespace>
+    <AssemblyName>Contoso.Automation.AI</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Contoso.Automation.Core/Contoso.Automation.Core.csproj" />
+
+    <!-- Anthropic.SDK - official .NET SDK for Claude API -->
+    <PackageReference Include="Anthropic.SDK" Version="3.7.0" />
+
+    <!-- JSON for parsing Claude structured responses -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+</Project>

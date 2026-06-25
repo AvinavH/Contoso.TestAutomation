@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Contoso.Automation.API</RootNamespace>
+    <AssemblyName>Contoso.Automation.API</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Contoso.Automation.Core/Contoso.Automation.Core.csproj" />
+
+    <!-- RestSharp for fluent HTTP client over Dataverse Web API -->
+    <PackageReference Include="RestSharp" Version="111.4.1" />
+
+    <!-- MSAL for Azure AD ROPC token acquisition (username/password OAuth flow) -->
+    <PackageReference Include="Microsoft.Identity.Client" Version="4.64.0" />
+
+    <!-- JSON serialization for Dataverse OData responses -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+</Project>

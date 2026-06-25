@@ -1,0 +1,37 @@
+# Session cookies — NEVER commit
+.auth/
+
+# Build artefacts
+**/bin/
+**/obj/
+
+# Test reports and run artefacts
+reports/
+allure-results/
+allure-report/
+test-results/
+
+# Secrets — use environment variables or dotnet user-secrets instead
+**/secrets.json
+appsettings.*.local.json
+
+# IDE
+.vs/
+.vscode/settings.json
+*.user
+
+# Playwright downloads
+**/ms-playwright/
+**/playwright-report/
+
+# Logs
+logs/
+*.log
+
+# NuGet
+*.nupkg
+.nuget/
+
+# OS
+.DS_Store
+Thumbs.db

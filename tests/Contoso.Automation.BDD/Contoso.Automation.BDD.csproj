@@ -1,0 +1,64 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Contoso.Automation.BDD</RootNamespace>
+    <AssemblyName>Contoso.Automation.BDD</AssemblyName>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/Contoso.Automation.D365/Contoso.Automation.D365.csproj" />
+    <ProjectReference Include="../../src/Contoso.Automation.API/Contoso.Automation.API.csproj" />
+    <ProjectReference Include="../../src/Contoso.Automation.AI/Contoso.Automation.AI.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      Reqnroll — open-source community successor to SpecFlow.
+      SpecFlow was deprecated when Tricentis made it commercial-only.
+      Reqnroll is API-compatible but uses the 'Reqnroll' namespace.
+
+      Migration guide: https://docs.reqnroll.net/latest/guides/migrating-from-specflow.html
+    -->
+    <PackageReference Include="Reqnroll"                         Version="2.3.2" />
+    <PackageReference Include="Reqnroll.NUnit"                   Version="2.3.2" />
+    <PackageReference Include="Reqnroll.MsBuild"                 Version="2.3.2" />
+
+    <!-- NUnit 3 — required; Reqnroll 2.x is not yet compatible with NUnit 4 -->
+    <PackageReference Include="NUnit"                            Version="3.14.0" />
+    <PackageReference Include="NUnit3TestAdapter"                Version="4.5.0"  />
+    <PackageReference Include="Microsoft.NET.Test.Sdk"           Version="17.11.1"/>
+
+    <!--
+      Allure for Reqnroll — richer HTML reporting with scenario timelines,
+      environment info, and attachment support.
+      The plugin auto-activates when referenced; no specflow.json plugin block needed.
+    -->
+    <PackageReference Include="Allure.Reqnroll"                  Version="4.0.0"  />
+
+    <!-- Self-contained live HTML dashboard (stakeholder-friendly, no server needed) -->
+    <PackageReference Include="AventStack.ExtentReports"         Version="5.0.4"  />
+
+    <!-- Step-level structured logging -->
+    <PackageReference Include="Serilog.Sinks.NUnit"              Version="1.0.0"  />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="**\*.feature">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="reqnroll.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="allureConfig.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

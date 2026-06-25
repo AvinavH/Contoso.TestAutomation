@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Contoso.Automation.Core</RootNamespace>
+    <AssemblyName>Contoso.Automation.Core</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Playwright for .NET - UI automation engine -->
+    <PackageReference Include="Castle.Core" Version="5.2.1" />
+    <PackageReference Include="Microsoft.Playwright" Version="1.48.0" />
+
+    <!-- Configuration stack - supports appsettings + env vars + user secrets -->
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="8.0.0" />
+
+    <!-- DI abstractions only - consumers bring their own container -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="8.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.2" />
+
+    <!-- Serilog structured logging -->
+    <PackageReference Include="Serilog" Version="3.1.1" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="5.0.1" />
+    <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
+    <PackageReference Include="Serilog.Extensions.Logging" Version="8.0.0" />
+
+    <!-- Fluent assertions for readable test assertions -->
+    <PackageReference Include="FluentAssertions" Version="6.12.1" />
+
+    <!-- Polly for resilient retry policies (D365 UI can be slow) -->
+    <PackageReference Include="Polly" Version="8.3.0" />
+
+    <!-- Bogus for realistic synthetic test data generation -->
+    <PackageReference Include="Bogus" Version="35.6.1" />
+
+    <!-- JSON handling -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+</Project>
