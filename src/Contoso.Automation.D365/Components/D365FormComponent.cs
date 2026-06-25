@@ -31,7 +31,7 @@ public sealed class D365FormComponent : BaseComponent
         await WithRetryAsync(async () =>
         {
             await input.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
-            await input.TripleClickAsync();   // Select all existing text
+            await input.ClickAsync(new LocatorClickOptions { ClickCount = 3 });   // Select all existing text
             await input.FillAsync(value);
             await input.PressAsync("Tab");    // Trigger D365 field change event
         });
@@ -54,7 +54,7 @@ public sealed class D365FormComponent : BaseComponent
     {
         var area = Page.Locator(D365Selectors.TextArea(fieldName));
         await area.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
-        await area.TripleClickAsync();
+        await area.ClickAsync(new LocatorClickOptions { ClickCount = 3 });
         await area.FillAsync(value);
         await area.PressAsync("Tab");
     }
@@ -78,7 +78,7 @@ public sealed class D365FormComponent : BaseComponent
     {
         var input = Page.Locator(D365Selectors.CurrencyInput(fieldName));
         await input.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
-        await input.TripleClickAsync();
+        await input.ClickAsync(new LocatorClickOptions { ClickCount = 3 });
         await input.FillAsync(amount);
         await input.PressAsync("Tab");
     }
@@ -90,7 +90,7 @@ public sealed class D365FormComponent : BaseComponent
     {
         var input = Page.Locator(D365Selectors.DateInput(fieldName));
         await input.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
-        await input.TripleClickAsync();
+        await input.ClickAsync(new LocatorClickOptions { ClickCount = 3 });
         await input.FillAsync(dateValue);
         await input.PressAsync("Tab");
     }
