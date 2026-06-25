@@ -18,13 +18,11 @@ public sealed class PlaywrightDriver : IAsyncDisposable
     private bool _traceStarted;
     private readonly BrowserSettings _settings;
     private readonly ReportingSettings _reporting;
-    private readonly string _d365BaseUrl;
 
     public PlaywrightDriver(TestConfiguration config)
     {
-        _settings    = config.Browser;
-        _reporting   = config.Reporting;
-        _d365BaseUrl = config.D365.BaseUrl;
+        _settings  = config.Browser;
+        _reporting = config.Reporting;
     }
 
     /// <summary>The active page - throws if InitialiseAsync has not been called</summary>
@@ -55,12 +53,6 @@ public sealed class PlaywrightDriver : IAsyncDisposable
         }
 
         _page = await _context.NewPageAsync();
-
-        if (!string.IsNullOrEmpty(_d365BaseUrl))
-        {
-            await _page.GotoAsync(_d365BaseUrl, new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded });
-            Log.Debug("Navigated to D365 base URL: {Url}", _d365BaseUrl);
-        }
 
         // Route console errors to Serilog for debugging flaky tests
         _page.Console += (_, msg) =>

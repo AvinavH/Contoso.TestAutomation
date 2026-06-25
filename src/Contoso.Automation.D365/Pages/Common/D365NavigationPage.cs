@@ -20,6 +20,13 @@ public sealed class D365NavigationPage : BasePage
 {
     public D365NavigationPage(IPage page, TestConfiguration config) : base(page, config) { }
 
+    /// <summary>Navigates to the D365 home page and waits for the app to fully load</summary>
+    public async Task GoHomeAsync()
+    {
+        await Page.GotoAsync(Config.D365.BaseUrl, new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded });
+        await WaitForNetworkIdleAsync(timeoutMs: 30_000);
+    }
+
     /// <summary>Navigates to the Accounts entity list view</summary>
     public async Task GoToAccountsAsync()
         => await NavigateToEntityListAsync("account");

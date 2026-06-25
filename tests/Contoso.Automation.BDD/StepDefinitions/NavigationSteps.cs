@@ -23,6 +23,8 @@ public sealed class NavigationSteps
     [Given(@"I am logged into D365 as a sales representative")]
     public async Task GivenIAmAuthenticatedAsync()
     {
+        // Navigate to D365 home and wait for the SPA to fully render before checking
+        await _navigation.GoHomeAsync();
         var isLoaded = await _navigation.IsD365LoadedAsync();
         isLoaded.Should().BeTrue("D365 should be accessible after authentication");
         _log.Information("D365 authentication confirmed");
