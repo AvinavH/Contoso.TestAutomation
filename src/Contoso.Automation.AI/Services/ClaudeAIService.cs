@@ -48,16 +48,16 @@ public sealed class ClaudeAIService
         {
             var messages = new List<Message>
             {
-                new Message { Role = RoleType.User, Content = prompt }
+                new Message { Role = RoleType.User, Content = new List<ContentBase> { new TextContent { Text = prompt } } }
             };
 
             var request = new MessageParameters
             {
-                Model    = _settings.Model,
+                Model     = _settings.Model,
                 MaxTokens = _settings.MaxTokens,
-                Messages = messages,
-                System   = systemPrompt is not null
-                    ? new List<SystemMessage> { new SystemMessage { Text = systemPrompt } }
+                Messages  = messages,
+                System    = systemPrompt is not null
+                    ? new List<SystemMessage> { new SystemMessage(systemPrompt) }
                     : null
             };
 
