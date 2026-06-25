@@ -89,7 +89,7 @@ public sealed class D365LoginPage
         // The KMSI screen appears after login; dismissing with "Yes" maximises session lifetime
         try
         {
-            await _page.WaitForSelectorAsync(KmsiScreen, new PageWaitForSelectorOptions { Timeout = 8_000 });
+            //await _page.WaitForSelectorAsync(KmsiScreen, new PageWaitForSelectorOptions { Timeout = 8_000 });
             _log.Debug("Accepting 'Stay signed in?' prompt");
             await _page.ClickAsync(StaySignedIn);
         }
