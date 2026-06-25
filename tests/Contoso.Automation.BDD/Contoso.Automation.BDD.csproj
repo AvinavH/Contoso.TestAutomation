@@ -23,9 +23,9 @@
 
       Migration guide: https://docs.reqnroll.net/latest/guides/migrating-from-specflow.html
     -->
-    <PackageReference Include="Reqnroll"                         Version="2.3.2" />
-    <PackageReference Include="Reqnroll.NUnit"                   Version="2.3.2" />
-    <PackageReference Include="Reqnroll.MsBuild"                 Version="2.3.2" />
+    <PackageReference Include="Reqnroll"                                  Version="3.0.3" />
+    <PackageReference Include="Reqnroll.NUnit"                            Version="3.0.3" />
+    <PackageReference Include="Reqnroll.Tools.MsBuild.Generation"         Version="3.0.3" />
 
     <!-- NUnit 3 — required; Reqnroll 2.x is not yet compatible with NUnit 4 -->
     <PackageReference Include="NUnit"                            Version="3.14.0" />
