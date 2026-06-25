@@ -109,6 +109,10 @@ public sealed class D365NavigationPage : BasePage
     {
         Logger.Information("Navigating to: {Url}", url);
         await Page.GotoAsync(url, new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded });
-        await WaitForNetworkIdleAsync(timeoutMs: 20_000);
+        // Wait for the command bar — confirms the entity view has rendered.
+        // WaitForNetworkIdle is avoided: D365 trial orgs never reach idle due to background polling.
+        await Page.WaitForSelectorAsync(
+            D365Selectors.CommandBar,
+            new PageWaitForSelectorOptions { Timeout = 60_000 });
     }
 }

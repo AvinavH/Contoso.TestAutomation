@@ -88,7 +88,10 @@ public sealed class ContactFormPage : BasePage
         await Page.WaitForSelectorAsync(
             D365Selectors.TextInput("lastname"),
             new PageWaitForSelectorOptions { State = WaitForSelectorState.Visible, Timeout = 30_000 });
-        await WaitForNetworkIdleAsync();
+        await Page.WaitForSelectorAsync(
+            D365Selectors.LoadingSpinner,
+            new PageWaitForSelectorOptions { State = WaitForSelectorState.Hidden, Timeout = 15_000 })
+            .ContinueWith(_ => Task.CompletedTask);
     }
 }
 
@@ -176,6 +179,9 @@ public sealed class OpportunityFormPage : BasePage
         await Page.WaitForSelectorAsync(
             D365Selectors.TextInput("name"),
             new PageWaitForSelectorOptions { State = WaitForSelectorState.Visible, Timeout = 30_000 });
-        await WaitForNetworkIdleAsync();
+        await Page.WaitForSelectorAsync(
+            D365Selectors.LoadingSpinner,
+            new PageWaitForSelectorOptions { State = WaitForSelectorState.Hidden, Timeout = 15_000 })
+            .ContinueWith(_ => Task.CompletedTask);
     }
 }

@@ -122,6 +122,10 @@ public sealed class AccountFormPage : BasePage
         await Page.WaitForSelectorAsync(
             D365Selectors.TextInput("name"),
             new PageWaitForSelectorOptions { State = WaitForSelectorState.Visible, Timeout = 30_000 });
-        await WaitForNetworkIdleAsync();
+        // Wait for loading spinner to disappear rather than network idle (D365 trial orgs never reach idle)
+        await Page.WaitForSelectorAsync(
+            D365Selectors.LoadingSpinner,
+            new PageWaitForSelectorOptions { State = WaitForSelectorState.Hidden, Timeout = 15_000 })
+            .ContinueWith(_ => Task.CompletedTask); // swallow if spinner never appeared
     }
 }
