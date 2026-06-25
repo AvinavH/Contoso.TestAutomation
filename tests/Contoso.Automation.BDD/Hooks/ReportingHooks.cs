@@ -63,8 +63,8 @@ public sealed class ReportingHooks
     {
         var info = _scenarioContext.ScenarioInfo;
 
-        AllureApi.SetSuiteName(info.Title);
-        AllureApi.SetStoryName(info.Title);
+        AllureApi.AddLabel("suite", info.Title);
+        AllureApi.AddLabel("story", info.Title);
         foreach (var tag in info.Tags)
             AllureApi.AddLabel("tag", tag);
 
