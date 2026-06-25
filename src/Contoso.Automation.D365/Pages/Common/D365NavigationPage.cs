@@ -20,11 +20,19 @@ public sealed class D365NavigationPage : BasePage
 {
     public D365NavigationPage(IPage page, TestConfiguration config) : base(page, config) { }
 
-    /// <summary>Navigates to the D365 home page and waits for the app to fully load</summary>
+    /// <summary>
+    /// Navigates to the D365 app and waits for the top navigation bar to appear.
+    /// Uses AppUrl (full URL with appid) when configured, otherwise BaseUrl.
+    /// Waits for the topbar element rather than network idle — D365 trial orgs
+    /// never reach network idle due to continuous background polling.
+    /// </summary>
     public async Task GoHomeAsync()
     {
-        await Page.GotoAsync(Config.D365.BaseUrl, new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded });
-        await WaitForNetworkIdleAsync(timeoutMs: 30_000);
+        var url = !string.IsNullOrEmpty(Config.D365.AppUrl) ? Config.D365.AppUrl : Config.D365.BaseUrl;
+        await Page.GotoAsync(url, new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded });
+        await Page.WaitForSelectorAsync(
+            D365.Components.D365Selectors.TopBar,
+            new PageWaitForSelectorOptions { Timeout = 60_000 });
     }
 
     /// <summary>Navigates to the Accounts entity list view</summary>

@@ -17,8 +17,14 @@ public sealed class TestConfiguration
 
 public sealed class D365Settings
 {
-    /// <summary>Root D365 URL, e.g. https://nwforg.crm4.dynamics.com</summary>
+    /// <summary>Root D365 org URL, e.g. https://orga3bb73ea.crm11.dynamics.com (no path)</summary>
     public string BaseUrl { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Full app entry URL including appid, e.g. https://org.crm11.dynamics.com/main.aspx?appid=xxx
+    /// Used for initial navigation. Falls back to BaseUrl when empty.
+    /// </summary>
+    public string AppUrl { get; set; } = string.Empty;
 
     /// <summary>Automation service account UPN</summary>
     public string Username { get; set; } = string.Empty;
