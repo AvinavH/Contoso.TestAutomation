@@ -78,6 +78,7 @@ public sealed class ContactFormPage : BasePage
             await SetParentAccountAsync(contact.ParentAccountName);
     }
 
+    public async Task<string?> GetFieldErrorAsync(string fieldName) => await _form.GetFieldErrorAsync(fieldName);
     public async Task SaveAsync() => await _form.SaveAsync();
     public async Task SaveAndCloseAsync() => await _form.SaveAndCloseAsync();
     public string GetRecordId() => ExtractRecordIdFromUrl();
@@ -165,6 +166,7 @@ public sealed class OpportunityFormPage : BasePage
             await SetDescriptionAsync(opportunity.Description);
     }
 
+    public async Task<string?> GetFieldErrorAsync(string fieldName) => await _form.GetFieldErrorAsync(fieldName);
     public async Task SaveAsync() => await _form.SaveAsync();
     public async Task SaveAndCloseAsync() => await _form.SaveAndCloseAsync();
     public string GetRecordId() => ExtractRecordIdFromUrl();

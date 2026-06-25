@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../Contoso.Automation.Core/Contoso.Automation.Core.csproj" />
+    <ProjectReference Include="../Contoso.Automation.D365/Contoso.Automation.D365.csproj" />
 
     <!-- RestSharp for fluent HTTP client over Dataverse Web API -->
     <PackageReference Include="RestSharp" Version="111.4.1" />
