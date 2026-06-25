@@ -113,7 +113,7 @@ public sealed class D365GridComponent : BaseComponent
         {
             await link.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible, Timeout = 10_000 });
             await link.ClickAsync();
-        }, operationName: $"OpenRecord:{recordName}");
+        });
 
         await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
     }

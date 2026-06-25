@@ -281,7 +281,7 @@ public sealed class OpportunitySteps
     }
 
     [Then(@"the opportunity should be linked to account ""(.*)""")]
-    public void ThenOpportunityLinkedToAccountAsync(string accountName)
+    public void ThenOpportunityLinkedToAccount(string accountName)
         => _log.Information("Verified opportunity linked to '{Account}'", accountName);
 
     [Then(@"""(.*)"" should be visible in the opportunities grid")]
@@ -300,7 +300,7 @@ public sealed class OpportunitySteps
     }
 
     [Then(@"the opportunity record in Dataverse should have:")]
-    public void ThenOpportunityDataverseRecordHasAsync(Table table)
+    public void ThenOpportunityDataverseRecordHas(Table table)
         => _log.Information("Verified Dataverse opportunity record for: {Name}",
             _ctx.CurrentOpportunity?.Name ?? "unknown");
 }
