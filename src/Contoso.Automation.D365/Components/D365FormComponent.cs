@@ -34,7 +34,7 @@ public sealed class D365FormComponent : BaseComponent
             await input.TripleClickAsync();   // Select all existing text
             await input.FillAsync(value);
             await input.PressAsync("Tab");    // Trigger D365 field change event
-        }, operationName: $"SetTextField:{fieldName}");
+        });
     }
 
     /// <summary>

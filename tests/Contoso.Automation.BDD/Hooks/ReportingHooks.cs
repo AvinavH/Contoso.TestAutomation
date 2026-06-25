@@ -29,7 +29,7 @@ namespace Contoso.Automation.BDD.Hooks;
 public sealed class ReportingHooks
 {
     private static ExtentReports? _extent;
-    private static readonly Lock ExtentLock = new();
+    private static readonly object ExtentLock = new();
 
     [ThreadStatic]
     private static ExtentTest? _currentTest;

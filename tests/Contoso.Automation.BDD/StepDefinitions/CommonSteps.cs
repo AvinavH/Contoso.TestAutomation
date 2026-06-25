@@ -1,3 +1,4 @@
+using Contoso.Automation.Core.Configuration;
 using Contoso.Automation.D365.Components;
 using Contoso.Automation.D365.Pages.Sales;
 using FluentAssertions;
@@ -19,18 +20,21 @@ public sealed class CommonSteps
     private readonly ContactsListPage      _contactsList;
     private readonly OpportunitiesListPage _opportunitiesList;
     private readonly IPage                 _page;
+    private readonly TestConfiguration     _config;
     private readonly ILogger               _log = Log.ForContext<CommonSteps>();
 
     public CommonSteps(
         AccountsListPage accountsList,
         ContactsListPage contactsList,
         OpportunitiesListPage opportunitiesList,
-        IPage page)
+        IPage page,
+        TestConfiguration config)
     {
         _accountsList      = accountsList;
         _contactsList      = contactsList;
         _opportunitiesList = opportunitiesList;
         _page              = page;
+        _config            = config;
     }
 
     [When(@"I search for ""(.*)""")]
@@ -94,7 +98,7 @@ public sealed class CommonSteps
             await _accountsList.WaitForLoadAsync();
             return await _accountsList.GetAccountCountAsync();
         }
-        var grid = new D365GridComponent(_page, null!);
+        var grid = new D365GridComponent(_page, _config);
         await grid.WaitForLoadAsync();
         return await grid.GetRowCountAsync();
     }
