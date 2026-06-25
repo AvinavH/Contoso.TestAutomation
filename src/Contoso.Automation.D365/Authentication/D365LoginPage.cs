@@ -44,8 +44,9 @@ public sealed class D365LoginPage
     /// </summary>
     public async Task LoginAsync()
     {
-        _log.Information("Navigating to D365: {Url}", _settings.BaseUrl);
-        await _page.GotoAsync(_settings.BaseUrl, new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded });
+        var loginUrl = !string.IsNullOrEmpty(_settings.AppUrl) ? _settings.AppUrl : _settings.BaseUrl;
+        _log.Information("Navigating to D365: {Url}", loginUrl);
+        await _page.GotoAsync(loginUrl, new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded });
 
         // Wait for redirect to Microsoft login
         await _page.WaitForURLAsync(url => url.Contains("login.microsoftonline.com") || url.Contains(_settings.BaseUrl),
@@ -103,13 +104,10 @@ public sealed class D365LoginPage
     private async Task WaitForD365LoadAsync()
     {
         _log.Debug("Waiting for D365 UCI to load");
-        await _page.WaitForSelectorAsync(D365Header, new PageWaitForSelectorOptions
-        {
-            Timeout = _settings.StorageStateExpiryHours * 1000 > 30_000
-                ? 60_000
-                : 60_000
-        });
-        // Allow D365 background XHR calls to complete before saving state
-        await _page.WaitForLoadStateAsync(LoadState.NetworkIdle, new PageWaitForLoadStateOptions { Timeout = 30_000 });
+        // Wait for the topbar — confirms D365 shell has rendered after login/redirect
+        await _page.WaitForSelectorAsync(D365Header, new PageWaitForSelectorOptions { Timeout = 90_000 });
+        // Brief pause to allow critical post-login XHR calls to settle before saving StorageState.
+        // WaitForNetworkIdle is not used: trial orgs continuously poll and never reach idle.
+        await _page.WaitForTimeoutAsync(2_000);
     }
 }
