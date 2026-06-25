@@ -35,13 +35,13 @@ public sealed class TestDataGeneratorAgent
         if (!_ai.IsEnabled)
             return GenerateFallbackAccount();
 
-        var prompt = $"""
+        var prompt = $$"""
             Generate test data for a D365 Account record for a UK financial services or infrastructure company
             that might be an investment target for the the organisation.
-            {(context is not null ? $"Additional context: {context}" : string.Empty)}
+            {{(context is not null ? $"Additional context: {context}" : string.Empty)}}
 
             Return a JSON object with these fields:
-            {{
+            {
               "Name": "company name (realistic UK business name)",
               "Phone": "UK phone number in +44 format",
               "Website": "www.companyname.co.uk",
@@ -49,7 +49,7 @@ public sealed class TestDataGeneratorAgent
               "City": "a UK city",
               "Industry": one of "Financial Services", "Energy", "Infrastructure", "Technology",
               "AnnualRevenue": "integer in millions as string e.g. '250000000'"
-            }}
+            }
             """;
 
         var json = await _ai.CompleteAsJsonAsync(prompt,
@@ -76,18 +76,18 @@ public sealed class TestDataGeneratorAgent
         if (!_ai.IsEnabled)
             return GenerateFallbackContact();
 
-        var prompt = $"""
+        var prompt = $$"""
             Generate test data for a D365 Contact record for a senior professional at a UK financial firm.
-            {(accountContext is not null ? $"Context: {accountContext}" : string.Empty)}
+            {{(accountContext is not null ? $"Context: {accountContext}" : string.Empty)}}
 
             Return JSON:
-            {{
+            {
               "FirstName": "realistic UK first name",
               "LastName":  "realistic UK surname",
               "Email":     "firstname.lastname@company.co.uk",
               "Phone":     "+44 format phone",
               "JobTitle":  "a senior finance or investment role"
-            }}
+            }
             """;
 
         var json = await _ai.CompleteAsJsonAsync(prompt,
