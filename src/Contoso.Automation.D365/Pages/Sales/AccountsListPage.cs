@@ -21,6 +21,7 @@ public sealed class AccountsListPage : BasePage
 
     public async Task ClickNewAsync()
     {
+        await Page.GetByRole(AriaRole.Button, new PageGetByRoleOptions { Name = "New Create a new Account record." }).ClickAsync();
         await Page.ClickAsync(D365Selectors.NewButton);
         await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
     }

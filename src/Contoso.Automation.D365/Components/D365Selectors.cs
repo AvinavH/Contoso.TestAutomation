@@ -81,7 +81,7 @@ public static class D365Selectors
     public const string CommandBar = "[data-id='CommandBar']";
 
     /// <summary>New record button</summary>
-    public const string NewButton = "[data-id='new-command'], button[aria-label='New']";
+    public const string NewButton = "";
 
     /// <summary>Save button</summary>
     public const string SaveButton = "button[aria-label='Save'], [data-id='save-command']";

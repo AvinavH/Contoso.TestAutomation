@@ -23,28 +23,31 @@
 
       Migration guide: https://docs.reqnroll.net/latest/guides/migrating-from-specflow.html
     -->
-    <PackageReference Include="Reqnroll"                                  Version="3.0.3" />
-    <PackageReference Include="Reqnroll.NUnit"                            Version="3.0.3" />
-    <PackageReference Include="Reqnroll.Tools.MsBuild.Generation"         Version="3.0.3" />
+    <PackageReference Include="Reqnroll" Version="3.0.3" />
+    <PackageReference Include="Reqnroll.NUnit" Version="3.0.3" />
+    <PackageReference Include="Reqnroll.Tools.MsBuild.Generation" Version="3.0.3" />
 
     <!-- NUnit 3 — required; Reqnroll 2.x is not yet compatible with NUnit 4 -->
-    <PackageReference Include="NUnit"                            Version="3.14.0" />
-    <PackageReference Include="NUnit3TestAdapter"                Version="4.5.0"  />
-    <PackageReference Include="Microsoft.NET.Test.Sdk"           Version="17.11.1"/>
+    <PackageReference Include="NUnit" Version="3.14.0" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.5.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
 
     <!--
       Allure for Reqnroll — richer HTML reporting with scenario timelines,
       environment info, and attachment support.
       The plugin auto-activates when referenced; no specflow.json plugin block needed.
     -->
-    <PackageReference Include="Allure.Reqnroll"                  Version="2.15.0" />
+    <PackageReference Include="Allure.Reqnroll" Version="2.15.0" />
 
     <!-- Step-level structured logging -->
-    <PackageReference Include="Serilog.Sinks.NUnit"              Version="1.0.0"  />
+    <PackageReference Include="Serilog.Sinks.NUnit" Version="1.0.0" />
   </ItemGroup>
 
   <ItemGroup>
     <None Update="**\*.feature">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="appsettings.dev.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="reqnroll.json">
